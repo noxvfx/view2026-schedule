@@ -22,6 +22,7 @@
 
     --cat-talk-h:195; --cat-panel-h:225; --cat-keynote-h:46; --cat-workshop-h:150;
     --cat-masterclass-h:285; --cat-lab-h:256; --cat-portfolio-h:312; --cat-default-h:220;
+    --sticky-offset:0px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
@@ -250,16 +251,19 @@
   .fav-stat.warn .n{ color:var(--conflict); }
   .fav-stat .lbl{ font-size:11px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.03em; margin-top:2px; }
   .day-section-heading{
-    font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:21px;
-    margin:20px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--line);
-    scroll-margin-top:150px; display:flex; align-items:baseline; gap:10px;
+    font-family:'Big Shoulders Display', sans-serif; font-weight:700; font-size:23px;
+    margin:28px -16px 14px; padding:11px 16px; background:var(--paper-sunken);
+    border-top:1px solid var(--line); border-bottom:3px solid var(--accent);
+    scroll-margin-top:calc(var(--sticky-offset) + 10px);
+    position:sticky; top:var(--sticky-offset); z-index:15;
+    display:flex; align-items:baseline; gap:10px;
   }
   .day-section-heading .today-badge{
     font-family:'IBM Plex Sans', sans-serif; font-size:10.5px; font-weight:700; letter-spacing:.04em;
     text-transform:uppercase; color:var(--accent); background:var(--accent-tint);
     padding:2px 8px; border-radius:999px;
   }
-  .schedule-day-block:first-child .day-section-heading{ margin-top:4px; }
+  .schedule-day-block:first-child .day-section-heading{ margin-top:6px; }
 
   /* ---------- speakers ---------- */
   .search-wrap{
@@ -893,6 +897,15 @@
     window.scrollTo({ top: 0 });
   }
 
+  /* ---------------- sticky day-header offset ---------------- */
+  function updateStickyOffset(){
+    var isDesktop = window.matchMedia('(min-width:720px)').matches;
+    var el = document.querySelector(isDesktop ? '.tabbar' : '.topbar');
+    var h = el ? el.getBoundingClientRect().height : 0;
+    document.documentElement.style.setProperty('--sticky-offset', h + 'px');
+  }
+  window.addEventListener('resize', updateStickyOffset);
+
   /* ---------------- master render ---------------- */
   function renderAll(){
     renderDayPills();
@@ -907,6 +920,7 @@
     var favBadge = document.getElementById('favBadge');
     var conflictCount = allFavoriteConflictIds().size;
     if (conflictCount){ favBadge.style.display='flex'; favBadge.textContent = conflictCount; } else { favBadge.style.display='none'; }
+    updateStickyOffset();
   }
 
   /* ---------------- event wiring ---------------- */
