@@ -1,0 +1,45 @@
+name: Refresh schedule
+
+on:
+  schedule:
+    # Every 12 hours, year-round
+    - cron: '17 */12 * * *'
+    # Conference week (Oct 12-16), roughly every couple hours during the day
+    # 06/07/08/10/11/14/18 UTC = 08/09/10/12/13/16/20 CEST (Europe/Rome)
+    - cron: '6 6 12-16 10 *'
+    - cron: '6 7 12-16 10 *'
+    - cron: '6 8 12-16 10 *'
+    - cron: '6 10 12-16 10 *'
+    - cron: '6 11 12-16 10 *'
+    - cron: '6 14 12-16 10 *'
+    - cron: '6 18 12-16 10 *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install beautifulsoup4 lxml
+
+      - run: python scripts/refresh.py
+
+      - name: Commit and push if the schedule changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-refresh schedule data"
+            git push
+          fi
