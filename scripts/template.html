@@ -470,6 +470,19 @@
     ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>'
   };
 
+  /* ---------------- safety: escape all scraped/typed text before it goes into innerHTML ---------------- */
+  var ESC_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ESC_MAP[c]; });
+  }
+  function safeHref(url){
+    if (!url) return null;
+    try {
+      var u = new URL(url, window.location.href);
+      return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : null;
+    } catch (e) { return null; }
+  }
+
   /* ---------------- date helpers ---------------- */
   function romeTodayISO(){
     var fmt = new Intl.DateTimeFormat('en-CA', { timeZone: ROME_TZ, year:'numeric', month:'2-digit', day:'2-digit' });
@@ -648,7 +661,7 @@
   /* ---------------- card rendering ---------------- */
   function speakerNames(s){
     if (!s.speakers || !s.speakers.length) return 'Speaker TBA';
-    return s.speakers.map(function(sp){ return sp.name; }).join(', ');
+    return s.speakers.map(function(sp){ return esc(sp.name); }).join(', ');
   }
   function timeLabel(s){
     if (!s.timeStart || !s.timeEnd) return 'Time TBA';
@@ -663,23 +676,24 @@
     var conflicts = isFav ? conflictsFor(s) : [];
     var conflictHtml = conflicts.length ? (
       '<div class="conflict-strip">' + ICONS.warn + '<span>Clashes with ' +
-      conflicts.map(function(c){ return '“' + c.title + '” (' + timeLabel(c) + ')'; }).join(', ') +
+      conflicts.map(function(c){ return '“' + esc(c.title) + '” (' + esc(timeLabel(c)) + ')'; }).join(', ') +
       '</span></div>'
     ) : '';
     var addon = s.ticketAccess === 'separate' ? '<span class="badge addon">+ Separate ticket</span>' : '';
-    var titleHtml = s.articleUrl
-      ? '<a class="card-title" href="' + s.articleUrl + '" target="_blank" rel="noopener">' + s.title + ICONS.ext + '</a>'
-      : '<div class="card-title">' + s.title + '</div>';
+    var safeArticleUrl = safeHref(s.articleUrl);
+    var titleHtml = safeArticleUrl
+      ? '<a class="card-title" href="' + esc(safeArticleUrl) + '" target="_blank" rel="noopener">' + esc(s.title) + ICONS.ext + '</a>'
+      : '<div class="card-title">' + esc(s.title) + '</div>';
     return (
-      '<article class="card" style="--cat-color:' + color + ';--cat-tint:' + tint + '" data-id="' + s.id + '">' +
+      '<article class="card" style="--cat-color:' + color + ';--cat-tint:' + tint + '" data-id="' + esc(s.id) + '">' +
         '<div class="card-top">' +
-          '<div class="badges"><span class="badge">' + (s.type || 'Session') + '</span>' + addon + '</div>' +
-          '<button class="fav-btn' + (isFav?' active':'') + '" data-fav="' + s.id + '" aria-label="Toggle favorite">' + (isFav ? ICONS.starSolid : ICONS.star) + '</button>' +
+          '<div class="badges"><span class="badge">' + esc(s.type || 'Session') + '</span>' + addon + '</div>' +
+          '<button class="fav-btn' + (isFav?' active':'') + '" data-fav="' + esc(s.id) + '" aria-label="Toggle favorite">' + (isFav ? ICONS.starSolid : ICONS.star) + '</button>' +
         '</div>' +
         titleHtml +
         '<div class="card-meta">' +
-          '<span class="mono">' + ICONS.clock + timeLabel(s) + '</span>' +
-          '<span>' + ICONS.pin + s.room + '</span>' +
+          '<span class="mono">' + ICONS.clock + esc(timeLabel(s)) + '</span>' +
+          '<span>' + ICONS.pin + esc(s.room) + '</span>' +
         '</div>' +
         '<div class="card-speakers">' + ICONS.users + '<span>' + speakerNames(s) + '</span></div>' +
         conflictHtml +
@@ -783,7 +797,7 @@
     var q = state.speakerListQuery.toLowerCase();
     var list = DATA.speakers.filter(function(sp){ return !q || sp.name.toLowerCase().indexOf(q) >= 0; });
     if (!list.length){
-      el.innerHTML = '<div class="empty-state">' + ICONS.empty + '<div>No speaker matches “' + state.speakerListQuery + '”.</div></div>';
+      el.innerHTML = '<div class="empty-state">' + ICONS.empty + '<div>No speaker matches “' + esc(state.speakerListQuery) + '”.</div></div>';
       return;
     }
     var body = list.map(function(sp){
@@ -793,22 +807,22 @@
         return (minutesOf(a.timeStart)||9999) - (minutesOf(b.timeStart)||9999);
       });
       var key = sp.url || sp.name;
-      return '<div class="speaker-row' + (open?' open':'') + '" data-speaker="' + key.replace(/"/g,'&quot;') + '">' +
+      return '<div class="speaker-row' + (open?' open':'') + '" data-speaker="' + esc(key) + '">' +
         '<div class="speaker-row-head">' +
-          '<div><div class="speaker-name">' + sp.name + '</div>' +
-          '<div class="speaker-role">' + (sp.roles[0] || '') + '</div></div>' +
+          '<div><div class="speaker-name">' + esc(sp.name) + '</div>' +
+          '<div class="speaker-role">' + esc(sp.roles[0] || '') + '</div></div>' +
           '<svg class="speaker-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>' +
         '</div>' +
         '<div class="speaker-sessions">' +
-          (sp.roles.length > 1 ? '<div class="speaker-ext" style="margin-bottom:4px;">' + sp.roles.join(' · ') + '</div>' : '') +
+          (sp.roles.length > 1 ? '<div class="speaker-ext" style="margin-bottom:4px;">' + esc(sp.roles.join(' · ')) + '</div>' : '') +
           sessions.map(function(s){
             var d = DATA.days.find(function(x){ return x.date === s.day; });
-            return '<div class="speaker-session-item" data-goto="' + s.id + '">' +
-              '<span>' + s.title + '<br><span class="speaker-ext">' + (d?d.label:s.day) + ' · ' + timeLabel(s) + ' · ' + s.room + '</span></span>' +
+            return '<div class="speaker-session-item" data-goto="' + esc(s.id) + '">' +
+              '<span>' + esc(s.title) + '<br><span class="speaker-ext">' + esc(d?d.label:s.day) + ' · ' + esc(timeLabel(s)) + ' · ' + esc(s.room) + '</span></span>' +
               '<span class="go">View →</span>' +
             '</div>';
           }).join('') +
-          (sp.url ? '<div style="margin-top:2px;"><a href="' + sp.url + '" target="_blank" rel="noopener" class="speaker-ext" style="display:inline-flex;align-items:center;gap:4px;">Profile ' + ICONS.ext + '</a></div>' : '') +
+          (function(){ var u = safeHref(sp.url); return u ? '<div style="margin-top:2px;"><a href="' + esc(u) + '" target="_blank" rel="noopener" class="speaker-ext" style="display:inline-flex;align-items:center;gap:4px;">Profile ' + ICONS.ext + '</a></div>' : ''; })() +
         '</div>' +
       '</div>';
     }).join('');
@@ -856,13 +870,13 @@
     document.getElementById('typeChips').innerHTML = typesPresent().map(function(t){
       var sel = draftFilters.types.has(t);
       var dot = 'background:' + catColor(t, dark) + ';';
-      return '<button class="chip' + (sel?' selected':'') + '" data-type="' + t.replace(/"/g,'&quot;') + '"><span class="dot" style="' + dot + '"></span>' + t + '</button>';
+      return '<button class="chip' + (sel?' selected':'') + '" data-type="' + esc(t) + '"><span class="dot" style="' + dot + '"></span>' + esc(t) + '</button>';
     }).join('');
     document.getElementById('roomChipGroups').innerHTML = roomGroups().map(function(g){
-      return '<div class="room-group"><div class="room-group-label">' + g.label + '</div><div class="chip-row">' +
+      return '<div class="room-group"><div class="room-group-label">' + esc(g.label) + '</div><div class="chip-row">' +
         g.rooms.map(function(r){
           var sel = draftFilters.rooms.has(r);
-          return '<button class="chip' + (sel?' selected':'') + '" data-room="' + r.replace(/"/g,'&quot;') + '">' + r + '</button>';
+          return '<button class="chip' + (sel?' selected':'') + '" data-room="' + esc(r) + '">' + esc(r) + '</button>';
         }).join('') +
       '</div></div>';
     }).join('');
