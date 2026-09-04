@@ -512,9 +512,14 @@
   var todaySection = resolveTodaySection();
   var urlParams = new URLSearchParams(window.location.search);
   var dateOverride = urlParams.get('date');
+  var storedTicket = null;
+  try {
+    var t = localStorage.getItem('view2026-ticket');
+    if (t === 'all' || t === 'light') storedTicket = t;
+  } catch(e){}
   var state = {
     dayFilter: (dateOverride && dayIndex(dateOverride) >= 0) ? dateOverride : null,
-    ticket: 'all',
+    ticket: storedTicket || 'all',
     types: new Set(),
     rooms: new Set(),
     speakerQuery: '',
@@ -524,6 +529,10 @@
   };
   var draftFilters = null;
   var hasAutoScrolled = false;
+
+  function saveTicket(){
+    try { localStorage.setItem('view2026-ticket', state.ticket); } catch(e){}
+  }
 
   var favorites = new Set();
   try {
@@ -900,6 +909,7 @@
   function resetFilterState(rerender){
     state.types = new Set(); state.rooms = new Set(); state.speakerQuery = '';
     state.ticket = 'all'; state.dayFilter = null;
+    saveTicket();
     if (rerender !== false) renderAll();
   }
 
@@ -950,6 +960,7 @@
     var btn = e.target.closest('button');
     if (!btn) return;
     state.ticket = btn.getAttribute('data-ticket');
+    saveTicket();
     renderAll();
   });
   document.getElementById('openFilters').addEventListener('click', openSheet);
