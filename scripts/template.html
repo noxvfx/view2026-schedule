@@ -94,7 +94,8 @@
     background:var(--paper); border-bottom:1px solid var(--line);
   }
   .topbar-inner{ max-width:1100px; margin:0 auto; padding:14px 16px 10px; }
-  .brand-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  .brand-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .header-right{ display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
   .wordmark{
     font-family:'Big Shoulders Display', sans-serif; font-weight:800;
     font-size:28px; letter-spacing:.01em; line-height:1;
@@ -349,16 +350,17 @@
     font-size:12px; color:var(--ink-faint); line-height:1.6; margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
   }
 
-  .app-footer{
-    margin-top:34px; padding-top:16px; border-top:1px solid var(--line);
-    text-align:center;
-  }
   .refresh-link{
-    border:0; background:none; color:var(--ink-faint); font-size:12px; font-weight:600;
-    text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:6px;
+    display:inline-flex; align-items:center; gap:5px;
+    border:1px solid var(--line); background:var(--paper-raised); color:var(--ink-soft);
+    font-size:11.5px; font-weight:700; border-radius:999px; padding:5px 11px 5px 9px; cursor:pointer;
   }
+  .refresh-link:active{ background:var(--paper-sunken); }
+  .refresh-link svg{ width:13px; height:13px; flex:0 0 auto; }
+  .refresh-link.spinning svg{ animation:refresh-spin .8s linear infinite; }
+  @keyframes refresh-spin{ to{ transform:rotate(360deg); } }
   .refresh-status{
-    font-size:11.5px; color:var(--ink-faint); margin-top:4px; min-height:14px;
+    font-size:11px; color:var(--ink-faint); text-align:right; max-width:160px; line-height:1.4;
   }
 
   /* filter sheet */
@@ -413,7 +415,14 @@
         <div class="wordmark">VIEW <span class="yr">2026</span></div>
         <div class="venue-line">27th Int'l Computer Graphics Conference · Torino, IT · 12–16 Oct</div>
       </div>
-      <div class="freshness" id="freshness"></div>
+      <div class="header-right">
+        <div class="freshness" id="freshness"></div>
+        <button id="refreshProgramBtn" class="refresh-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.9-3.4M4 13a8 8 0 0 0 14.9 3.4"/><path d="M4 4v5h5M20 20v-5h-5"/></svg>
+          Refresh program
+        </button>
+        <div id="refreshStatus" class="refresh-status" aria-live="polite"></div>
+      </div>
     </div>
   </div>
   <div class="day-scroller" id="dayScroller"></div>
@@ -442,10 +451,6 @@
     </div>
     <div id="speakersResults"></div>
   </section>
-  <div class="app-footer">
-    <button id="refreshProgramBtn" class="refresh-link">Refresh program data</button>
-    <div id="refreshStatus" class="refresh-status" aria-live="polite"></div>
-  </div>
 </main>
 
 <nav class="tabbar">
@@ -1244,6 +1249,7 @@
   document.getElementById('refreshProgramBtn').addEventListener('click', function(){
     var btn = this, statusEl = document.getElementById('refreshStatus');
     btn.disabled = true;
+    btn.classList.add('spinning');
     statusEl.textContent = 'Requesting a refresh…';
     fetch(REFRESH_RELAY_URL, { method: 'POST' })
       .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(data){ return { status: r.status, data: data }; }); })
@@ -1260,7 +1266,7 @@
       .catch(function(){
         statusEl.textContent = 'Could not reach the refresh service — check your connection.';
       })
-      .then(function(){ btn.disabled = false; });
+      .then(function(){ btn.disabled = false; btn.classList.remove('spinning'); });
   });
 
   renderFreshness();
