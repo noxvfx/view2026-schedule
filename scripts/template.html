@@ -608,11 +608,15 @@
   }
 
   /* ---------------- change detection: diff this load's data against last visit's ---------------- */
+  // The conference's own "session-N" slot IDs turned out NOT to be stable — they've been
+  // observed being reused for an unrelated talk after a reschedule. So an id match alone is
+  // not trusted as "same talk": every favorite is re-verified by content (articleUrl first,
+  // then title/speaker/type) before being treated as an update rather than a swap.
   var SNAPSHOT_KEY = 'view2026-last-seen-sessions';
   function snapshotOf(s){
     return {
-      title: s.title, day: s.day, timeStart: s.timeStart, timeEnd: s.timeEnd,
-      room: s.room, type: s.type,
+      title: s.title, articleUrl: s.articleUrl || null, day: s.day,
+      timeStart: s.timeStart, timeEnd: s.timeEnd, room: s.room, type: s.type,
       speakers: (s.speakers || []).map(function(sp){ return sp.name; })
     };
   }
@@ -622,6 +626,32 @@
         a.room !== b.room || a.type !== b.type || a.speakers.length !== b.speakers.length) return false;
     for (var i = 0; i < a.speakers.length; i++) if (a.speakers[i] !== b.speakers[i]) return false;
     return true;
+  }
+  // Is `now` still recognizably the same talk as `was` (possibly rescheduled), or has this id
+  // been reused for something unrelated? articleUrl match is the strongest signal; otherwise
+  // fall back to an exact title match, or any shared speaker on a session of the same type.
+  function sameTalkIdentity(was, now){
+    if (was.articleUrl && now.articleUrl) return was.articleUrl === now.articleUrl;
+    if (was.title === now.title) return true;
+    if (!was.speakers.length) return false;
+    var overlap = was.speakers.some(function(n){ return now.speakers.indexOf(n) >= 0; });
+    return overlap && was.type === now.type;
+  }
+  // Search the CURRENT program for a session (any id) that looks like where `was` moved to,
+  // so a favorite can be relinked instead of just lost when its old id gets reused.
+  function findRelocatedMatch(was, excludeId, claimedIds){
+    var byArticle = null, byTitle = null, bySpeaker = null;
+    for (var i = 0; i < DATA.sessions.length; i++){
+      var s = DATA.sessions[i];
+      if (s.id === excludeId || claimedIds.has(s.id)) continue;
+      if (was.articleUrl && s.articleUrl && s.articleUrl === was.articleUrl) { byArticle = s; break; }
+      if (!byTitle && s.title === was.title) byTitle = s;
+      if (!bySpeaker && was.type === s.type && was.speakers.length){
+        var names = (s.speakers || []).map(function(sp){ return sp.name; });
+        if (was.speakers.some(function(n){ return names.indexOf(n) >= 0; })) bySpeaker = s;
+      }
+    }
+    return byArticle || byTitle || bySpeaker || null;
   }
   var currentSnapshot = {};
   DATA.sessions.forEach(function(s){ currentSnapshot[s.id] = snapshotOf(s); });
@@ -633,8 +663,9 @@
   } catch(e){}
 
   var anyProgramChange = false;
-  var changedFavorites = [];   // [{id, was, now}]
-  var removedFavorites = [];   // [{id, was}]
+  var changedFavorites = [];    // [{id, was, now}] - same talk, some field(s) differ
+  var removedFavorites = [];    // [{id, was, reason:'removed'|'reassigned'}] - gone, no match found
+  var relinkedFavorites = [];   // [{oldId, newId, was, now}] - moved to a new id, re-favorited automatically
 
   if (previousSnapshot){
     var oldIds = Object.keys(previousSnapshot), newIds = Object.keys(currentSnapshot);
@@ -645,20 +676,43 @@
     if (!anyProgramChange) for (var oi = 0; oi < oldIds.length; oi++){
       if (!(oldIds[oi] in currentSnapshot)) { anyProgramChange = true; break; }
     }
+
+    var claimedIds = new Set();
+    var favoritesChanged = false;
     favorites.forEach(function(id){
       var was = previousSnapshot[id];
       if (!was) return; // wasn't in last snapshot either (favorited since, or first visit) - nothing to compare
-      if (!(id in currentSnapshot)) { removedFavorites.push({ id: id, was: was }); return; }
-      if (!sameSnapshot(was, currentSnapshot[id])) changedFavorites.push({ id: id, was: was, now: currentSnapshot[id] });
+      var now = currentSnapshot[id];
+      if (now && sameTalkIdentity(was, now)){
+        claimedIds.add(id);
+        if (!sameSnapshot(was, now)) changedFavorites.push({ id: id, was: was, now: now });
+        return;
+      }
+      // Either the id vanished entirely, or it now points at a different talk. Either way,
+      // this id no longer represents what was favorited - look for where it actually went.
+      var relocated = findRelocatedMatch(was, id, claimedIds);
+      favorites.delete(id);
+      favoritesChanged = true;
+      if (relocated){
+        claimedIds.add(relocated.id);
+        favorites.add(relocated.id);
+        relinkedFavorites.push({ oldId: id, newId: relocated.id, was: was, now: snapshotOf(relocated) });
+      } else {
+        removedFavorites.push({ id: id, was: was, reason: now ? 'reassigned' : 'removed' });
+      }
     });
+    if (favoritesChanged) saveFavorites();
   }
   try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(currentSnapshot)); } catch(e){}
 
-  // clean up favorites that no longer exist in the program at all
   function dismissRemovedFavorite(id){
     favorites.delete(id);
     saveFavorites();
     removedFavorites = removedFavorites.filter(function(r){ return r.id !== id; });
+    renderAll();
+  }
+  function dismissRelinkedNotice(oldId){
+    relinkedFavorites = relinkedFavorites.filter(function(r){ return r.oldId !== oldId; });
     renderAll();
   }
 
@@ -797,7 +851,7 @@
     if (!anyProgramChange) return;
     var el = document.getElementById('programUpdateBanner');
     var stamp = new Intl.DateTimeFormat('en-GB', { timeZone: ROME_TZ, hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(DATA.generatedAt));
-    var extra = (changedFavorites.length || removedFavorites.length)
+    var extra = (changedFavorites.length || removedFavorites.length || relinkedFavorites.length)
       ? ' Check your Favorites — some may have moved.'
       : '';
     el.innerHTML =
@@ -830,7 +884,11 @@
       '</span></div>'
     ) : '';
     var changedEntry = isFav ? changedFavorites.find(function(c){ return c.id === s.id; }) : null;
-    var updateHtml = changedEntry ? (
+    var relinkedEntry = isFav ? relinkedFavorites.find(function(r){ return r.newId === s.id; }) : null;
+    var updateHtml = relinkedEntry ? (
+      '<div class="update-strip">' + ICONS.refresh +
+      '<span>This favorite moved to a new listing — was “' + esc(relinkedEntry.was.title) + '” (' + esc(describeSnapshot(relinkedEntry.was)) + ')</span></div>'
+    ) : changedEntry ? (
       '<div class="update-strip">' + ICONS.refresh +
       '<span>Updated since you favorited it — was: ' + esc(describeSnapshot(changedEntry.was)) + '</span></div>'
     ) : '';
@@ -918,12 +976,33 @@
 
   function removedCalloutHtml(){
     if (!removedFavorites.length) return '';
-    return '<div class="removed-callout">' +
-      '<div class="removed-callout-title">' + ICONS.warn + (removedFavorites.length === 1
-        ? '1 favorited session was removed from the program' : removedFavorites.length + ' favorited sessions were removed from the program') + '</div>' +
-      removedFavorites.map(function(r){
+    var trueRemoved = removedFavorites.filter(function(r){ return r.reason === 'removed'; });
+    var reassigned = removedFavorites.filter(function(r){ return r.reason === 'reassigned'; });
+    function block(items, title){
+      if (!items.length) return '';
+      return '<div class="removed-callout">' +
+        '<div class="removed-callout-title">' + ICONS.warn + title + '</div>' +
+        items.map(function(r){
+          return '<div class="removed-callout-item"><span>“' + esc(r.was.title) + '” — was ' + esc(describeSnapshot(r.was)) + '</span>' +
+            '<button data-clear-removed="' + esc(r.id) + '">Dismiss</button></div>';
+        }).join('') +
+      '</div>';
+    }
+    return block(trueRemoved, trueRemoved.length === 1
+        ? '1 favorited session was removed from the program' : trueRemoved.length + ' favorited sessions were removed from the program') +
+      block(reassigned, reassigned.length === 1
+        ? '1 favorite’s listing was reused for a different session, and we couldn’t find where it moved — it’s been unfavorited'
+        : reassigned.length + ' favorites’ listings were reused for different sessions, and we couldn’t find where they moved — they’ve been unfavorited');
+  }
+
+  function relinkedCalloutHtml(){
+    if (!relinkedFavorites.length) return '';
+    return '<div class="removed-callout" style="background:var(--update-tint); color:var(--update-ink);">' +
+      '<div class="removed-callout-title">' + ICONS.refresh + (relinkedFavorites.length === 1
+        ? '1 favorite moved to a new listing — kept it favorited automatically' : relinkedFavorites.length + ' favorites moved to new listings — kept them favorited automatically') + '</div>' +
+      relinkedFavorites.map(function(r){
         return '<div class="removed-callout-item"><span>“' + esc(r.was.title) + '” — was ' + esc(describeSnapshot(r.was)) + '</span>' +
-          '<button data-clear-removed="' + esc(r.id) + '">Dismiss</button></div>';
+          '<button data-clear-relinked="' + esc(r.oldId) + '">Dismiss</button></div>';
       }).join('') +
     '</div>';
   }
@@ -937,7 +1016,7 @@
       return (ma==null?9999:ma) - (mb==null?9999:mb);
     });
     if (!favSessions.length){
-      el.innerHTML = removedCalloutHtml() +
+      el.innerHTML = removedCalloutHtml() + relinkedCalloutHtml() +
         '<div class="empty-state">' + ICONS.star.replace('currentColor','var(--ink-faint)') +
         '<div>No favorites yet.<br>Tap the star on any session to save it here.</div></div>';
       bindRemovedCalloutButtons();
@@ -950,7 +1029,7 @@
       if (!byDay[s.day]){ byDay[s.day] = []; order.push(s.day); }
       byDay[s.day].push(s);
     });
-    var html = removedCalloutHtml();
+    var html = removedCalloutHtml() + relinkedCalloutHtml();
     html += '<div class="fav-summary">' +
       '<div class="fav-stat"><div class="n">' + favSessions.length + '</div><div class="lbl">Saved</div></div>' +
       '<div class="fav-stat' + (conflictIds.size ? ' warn' : '') + '"><div class="n">' + conflictIds.size + '</div><div class="lbl">In conflict</div></div>' +
@@ -966,6 +1045,9 @@
   function bindRemovedCalloutButtons(){
     document.querySelectorAll('[data-clear-removed]').forEach(function(btn){
       btn.addEventListener('click', function(){ dismissRemovedFavorite(btn.getAttribute('data-clear-removed')); });
+    });
+    document.querySelectorAll('[data-clear-relinked]').forEach(function(btn){
+      btn.addEventListener('click', function(){ dismissRelinkedNotice(btn.getAttribute('data-clear-relinked')); });
     });
   }
 
@@ -1110,7 +1192,7 @@
     renderFavorites();
     renderSpeakers();
     var favBadge = document.getElementById('favBadge');
-    var attentionCount = allFavoriteConflictIds().size + changedFavorites.length + removedFavorites.length;
+    var attentionCount = allFavoriteConflictIds().size + changedFavorites.length + removedFavorites.length + relinkedFavorites.length;
     if (attentionCount){ favBadge.style.display='flex'; favBadge.textContent = attentionCount; } else { favBadge.style.display='none'; }
     updateStickyOffset();
   }

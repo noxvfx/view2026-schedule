@@ -155,16 +155,38 @@ overwrites the old one).
 ## Change detection (program-updated banner, favorite-change alerts)
 
 The page compares each load's session data against a snapshot saved in
-`localStorage` from the visitor's last visit (day/time/room/type/speakers
-per session id — deliberately not the always-changing `generatedAt`
-timestamp, so this only fires on real content changes, not every scheduled
-rebuild). On a real change since last visit:
+`localStorage` from the visitor's last visit (title/articleUrl/day/time/
+room/type/speakers per session id — deliberately not the always-changing
+`generatedAt` timestamp, so this only fires on real content changes, not
+every scheduled rebuild). On a real change since last visit:
 - A dismissible "Program updated" banner appears.
 - Any favorited session whose time/day/room/speakers changed gets a blue
   "Updated since you favorited it" strip on its card.
-- Any favorited session removed from the program entirely surfaces as a
-  callout at the top of the Favorites tab, with a one-tap dismiss that also
-  cleans up the now-defunct favorite from storage.
+
+**The conference's own `session-N` slot ids turned out not to be stable** —
+observed in production being reused for an unrelated talk after a
+reschedule, which silently favorited the wrong session for at least one
+user. So an id match is never trusted alone; every favorite is re-verified
+by content before being treated as "the same talk, just moved":
+1. **`articleUrl` match** (a separate numbering sequence from `session-N`,
+   present on most but not all sessions) — the strongest signal.
+2. **Exact title match** as a fallback when either side lacks an articleUrl.
+3. **Any shared speaker name on a session of the same type** as a last resort.
+
+If a favorited id no longer identifies the same talk by that check, the
+program is searched for where the talk actually went (same three-tier
+match, across all current sessions) before giving up:
+- **Found** → the favorite is automatically relinked to the new id, and the
+  card shows "This favorite moved to a new listing" with the old listing's
+  details. A summary callout at the top of the Favorites tab lists all
+  auto-relinked favorites for that visit.
+- **Not found** → the favorite is removed (distinguishing "removed from the
+  program" from "this id was reused for something else, and we couldn't
+  find where the original went" in the callout copy), with a one-tap
+  dismiss that also cleans up the now-defunct favorite from storage.
+
+See `sameTalkIdentity()` and `findRelocatedMatch()` in `scripts/template.html`
+for the exact matching logic.
 
 ## Security notes
 
