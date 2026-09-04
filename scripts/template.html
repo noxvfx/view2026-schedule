@@ -18,6 +18,9 @@
     --conflict:#c81e3a;
     --conflict-tint:#fbe1e5;
     --conflict-ink:#7a0f22;
+    --update:#1f6fbf;
+    --update-tint:#dbeafd;
+    --update-ink:#0f4a85;
     --shadow: 0 1px 2px rgba(28,33,40,.05), 0 6px 16px -8px rgba(28,33,40,.18);
 
     --cat-talk-h:195; --cat-panel-h:225; --cat-keynote-h:46; --cat-workshop-h:150;
@@ -41,6 +44,9 @@
       --conflict:#ff6b7f;
       --conflict-tint:#3a1420;
       --conflict-ink:#ffb0bd;
+      --update:#5fa8f5;
+      --update-tint:#132a3e;
+      --update-ink:#bcdcff;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.5);
     }
   }
@@ -60,6 +66,9 @@
     --conflict:#ff6b7f;
     --conflict-tint:#3a1420;
     --conflict-ink:#ffb0bd;
+    --update:#5fa8f5;
+    --update-tint:#132a3e;
+    --update-ink:#bcdcff;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.5);
   }
 
@@ -229,6 +238,41 @@
     border-radius:12px; padding:9px 12px; font-size:17px; font-weight:600; line-height:1.35;
   }
   .conflict-strip svg{ width:20px; height:20px; flex:0 0 auto; margin-top:1px; }
+  .update-strip{
+    display:flex; align-items:flex-start; gap:9px; background:var(--update-tint); color:var(--update-ink);
+    border-radius:12px; padding:9px 12px; font-size:17px; font-weight:600; line-height:1.35;
+  }
+  .update-strip svg{ width:20px; height:20px; flex:0 0 auto; margin-top:1px; }
+
+  .program-update-banner{
+    max-width:1100px; margin:0 auto; padding:0 16px 10px;
+  }
+  .program-update-inner{
+    display:flex; align-items:center; gap:10px; background:var(--update-tint); color:var(--update-ink);
+    border-radius:14px; padding:12px 14px; font-size:16px; font-weight:700;
+  }
+  .program-update-inner svg{ width:20px; height:20px; flex:0 0 auto; }
+  .program-update-inner span{ flex:1; }
+  .program-update-close{
+    border:0; background:none; color:inherit; cursor:pointer; padding:4px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; opacity:.7;
+  }
+  .program-update-close svg{ width:16px; height:16px; }
+
+  .removed-callout{
+    background:var(--conflict-tint); color:var(--conflict-ink); border-radius:14px;
+    padding:14px 16px; margin-bottom:16px;
+  }
+  .removed-callout-title{ font-weight:700; font-size:17px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .removed-callout-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:8px 0; border-top:1px solid rgba(0,0,0,.08); font-size:15px;
+  }
+  .removed-callout-item:first-of-type{ border-top:0; }
+  .removed-callout-item button{
+    border:1px solid currentColor; background:none; color:inherit; border-radius:999px;
+    padding:5px 12px; font-size:13px; font-weight:600; cursor:pointer; flex:0 0 auto;
+  }
 
   .empty-state{
     text-align:center; padding:60px 20px; color:var(--ink-faint);
@@ -361,6 +405,7 @@
     </div>
   </div>
   <div class="day-scroller" id="dayScroller"></div>
+  <div class="program-update-banner" id="programUpdateBanner"></div>
   <div class="banner" id="rangeBanner"></div>
   <div class="filter-row">
     <div class="segmented" id="ticketSeg">
@@ -467,7 +512,9 @@
     star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6-4.5-4.1 6-.7L12 3.5z"/></svg>',
     starSolid: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6-4.5-4.1 6-.7L12 3.5z"/></svg>',
     empty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><path d="M8 14.5h3M8 17.5h6" stroke-linecap="round"/></svg>',
-    ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>'
+    ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.9-3.4M4 13a8 8 0 0 0 14.9 3.4"/><path d="M4 4v5h5M20 20v-5h-5"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>'
   };
 
   /* ---------------- safety: escape all scraped/typed text before it goes into innerHTML ---------------- */
@@ -541,6 +588,68 @@
   } catch(e){}
   function saveFavorites(){
     try { localStorage.setItem('view2026-favorites', JSON.stringify(Array.from(favorites))); } catch(e){}
+  }
+
+  /* ---------------- change detection: diff this load's data against last visit's ---------------- */
+  var SNAPSHOT_KEY = 'view2026-last-seen-sessions';
+  function snapshotOf(s){
+    return {
+      title: s.title, day: s.day, timeStart: s.timeStart, timeEnd: s.timeEnd,
+      room: s.room, type: s.type,
+      speakers: (s.speakers || []).map(function(sp){ return sp.name; })
+    };
+  }
+  function sameSnapshot(a, b){
+    if (!a || !b) return false;
+    if (a.day !== b.day || a.timeStart !== b.timeStart || a.timeEnd !== b.timeEnd ||
+        a.room !== b.room || a.type !== b.type || a.speakers.length !== b.speakers.length) return false;
+    for (var i = 0; i < a.speakers.length; i++) if (a.speakers[i] !== b.speakers[i]) return false;
+    return true;
+  }
+  var currentSnapshot = {};
+  DATA.sessions.forEach(function(s){ currentSnapshot[s.id] = snapshotOf(s); });
+
+  var previousSnapshot = null;
+  try {
+    var rawPrev = localStorage.getItem(SNAPSHOT_KEY);
+    if (rawPrev) previousSnapshot = JSON.parse(rawPrev);
+  } catch(e){}
+
+  var anyProgramChange = false;
+  var changedFavorites = [];   // [{id, was, now}]
+  var removedFavorites = [];   // [{id, was}]
+
+  if (previousSnapshot){
+    var oldIds = Object.keys(previousSnapshot), newIds = Object.keys(currentSnapshot);
+    if (oldIds.length !== newIds.length) anyProgramChange = true;
+    if (!anyProgramChange) for (var ni = 0; ni < newIds.length; ni++){
+      if (!sameSnapshot(previousSnapshot[newIds[ni]], currentSnapshot[newIds[ni]])) { anyProgramChange = true; break; }
+    }
+    if (!anyProgramChange) for (var oi = 0; oi < oldIds.length; oi++){
+      if (!(oldIds[oi] in currentSnapshot)) { anyProgramChange = true; break; }
+    }
+    favorites.forEach(function(id){
+      var was = previousSnapshot[id];
+      if (!was) return; // wasn't in last snapshot either (favorited since, or first visit) - nothing to compare
+      if (!(id in currentSnapshot)) { removedFavorites.push({ id: id, was: was }); return; }
+      if (!sameSnapshot(was, currentSnapshot[id])) changedFavorites.push({ id: id, was: was, now: currentSnapshot[id] });
+    });
+  }
+  try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(currentSnapshot)); } catch(e){}
+
+  // clean up favorites that no longer exist in the program at all
+  function dismissRemovedFavorite(id){
+    favorites.delete(id);
+    saveFavorites();
+    removedFavorites = removedFavorites.filter(function(r){ return r.id !== id; });
+    renderAll();
+  }
+
+  function describeSnapshot(snap){
+    var d = DATA.days.find(function(x){ return x.date === snap.day; });
+    var dayLabel = d ? fmtDayFull(snap.day) : snap.day;
+    var time = (snap.timeStart && snap.timeEnd) ? (snap.timeStart + '–' + snap.timeEnd) : 'time TBA';
+    return dayLabel + ' · ' + time + ' · ' + (snap.room || 'room TBA');
   }
 
   /* ---------------- data helpers ---------------- */
@@ -667,6 +776,21 @@
     if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
+  function renderProgramUpdateBanner(){
+    if (!anyProgramChange) return;
+    var el = document.getElementById('programUpdateBanner');
+    var stamp = new Intl.DateTimeFormat('en-GB', { timeZone: ROME_TZ, hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(DATA.generatedAt));
+    var extra = (changedFavorites.length || removedFavorites.length)
+      ? ' Check your Favorites — some may have moved.'
+      : '';
+    el.innerHTML =
+      '<div class="program-update-inner">' + ICONS.refresh +
+        '<span>Program updated — refreshed at ' + esc(stamp) + ' CET.' + esc(extra) + '</span>' +
+        '<button class="program-update-close" id="dismissProgramUpdate" aria-label="Dismiss">' + ICONS.close + '</button>' +
+      '</div>';
+    document.getElementById('dismissProgramUpdate').addEventListener('click', function(){ el.innerHTML = ''; });
+  }
+
   /* ---------------- card rendering ---------------- */
   function speakerNames(s){
     if (!s.speakers || !s.speakers.length) return 'Speaker TBA';
@@ -688,6 +812,11 @@
       conflicts.map(function(c){ return '“' + esc(c.title) + '” (' + esc(timeLabel(c)) + ')'; }).join(', ') +
       '</span></div>'
     ) : '';
+    var changedEntry = isFav ? changedFavorites.find(function(c){ return c.id === s.id; }) : null;
+    var updateHtml = changedEntry ? (
+      '<div class="update-strip">' + ICONS.refresh +
+      '<span>Updated since you favorited it — was: ' + esc(describeSnapshot(changedEntry.was)) + '</span></div>'
+    ) : '';
     var addon = s.ticketAccess === 'separate' ? '<span class="badge addon">+ Separate ticket</span>' : '';
     var safeArticleUrl = safeHref(s.articleUrl);
     var titleHtml = safeArticleUrl
@@ -706,6 +835,7 @@
         '</div>' +
         '<div class="card-speakers">' + ICONS.users + '<span>' + speakerNames(s) + '</span></div>' +
         conflictHtml +
+        updateHtml +
       '</article>'
     );
   }
@@ -769,6 +899,18 @@
     }
   }
 
+  function removedCalloutHtml(){
+    if (!removedFavorites.length) return '';
+    return '<div class="removed-callout">' +
+      '<div class="removed-callout-title">' + ICONS.warn + (removedFavorites.length === 1
+        ? '1 favorited session was removed from the program' : removedFavorites.length + ' favorited sessions were removed from the program') + '</div>' +
+      removedFavorites.map(function(r){
+        return '<div class="removed-callout-item"><span>“' + esc(r.was.title) + '” — was ' + esc(describeSnapshot(r.was)) + '</span>' +
+          '<button data-clear-removed="' + esc(r.id) + '">Dismiss</button></div>';
+      }).join('') +
+    '</div>';
+  }
+
   function renderFavorites(){
     var el = document.getElementById('view-favorites');
     var favSessions = DATA.sessions.filter(function(s){ return favorites.has(s.id); });
@@ -778,8 +920,10 @@
       return (ma==null?9999:ma) - (mb==null?9999:mb);
     });
     if (!favSessions.length){
-      el.innerHTML = '<div class="empty-state">' + ICONS.star.replace('currentColor','var(--ink-faint)') +
+      el.innerHTML = removedCalloutHtml() +
+        '<div class="empty-state">' + ICONS.star.replace('currentColor','var(--ink-faint)') +
         '<div>No favorites yet.<br>Tap the star on any session to save it here.</div></div>';
+      bindRemovedCalloutButtons();
       return;
     }
     var conflictIds = allFavoriteConflictIds();
@@ -789,7 +933,8 @@
       if (!byDay[s.day]){ byDay[s.day] = []; order.push(s.day); }
       byDay[s.day].push(s);
     });
-    var html = '<div class="fav-summary">' +
+    var html = removedCalloutHtml();
+    html += '<div class="fav-summary">' +
       '<div class="fav-stat"><div class="n">' + favSessions.length + '</div><div class="lbl">Saved</div></div>' +
       '<div class="fav-stat' + (conflictIds.size ? ' warn' : '') + '"><div class="n">' + conflictIds.size + '</div><div class="lbl">In conflict</div></div>' +
     '</div>';
@@ -799,6 +944,12 @@
         '<div class="cards">' + byDay[day].map(function(s){ return renderCard(s); }).join('') + '</div>';
     }).join('');
     el.innerHTML = html;
+    bindRemovedCalloutButtons();
+  }
+  function bindRemovedCalloutButtons(){
+    document.querySelectorAll('[data-clear-removed]').forEach(function(btn){
+      btn.addEventListener('click', function(){ dismissRemovedFavorite(btn.getAttribute('data-clear-removed')); });
+    });
   }
 
   function renderSpeakers(){
@@ -942,8 +1093,8 @@
     renderFavorites();
     renderSpeakers();
     var favBadge = document.getElementById('favBadge');
-    var conflictCount = allFavoriteConflictIds().size;
-    if (conflictCount){ favBadge.style.display='flex'; favBadge.textContent = conflictCount; } else { favBadge.style.display='none'; }
+    var attentionCount = allFavoriteConflictIds().size + changedFavorites.length + removedFavorites.length;
+    if (attentionCount){ favBadge.style.display='flex'; favBadge.textContent = attentionCount; } else { favBadge.style.display='none'; }
     updateStickyOffset();
   }
 
@@ -992,6 +1143,7 @@
   }
 
   renderFreshness();
+  renderProgramUpdateBanner();
   renderAll();
 })();
 </script>
