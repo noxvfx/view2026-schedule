@@ -349,6 +349,18 @@
     font-size:12px; color:var(--ink-faint); line-height:1.6; margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
   }
 
+  .app-footer{
+    margin-top:34px; padding-top:16px; border-top:1px solid var(--line);
+    text-align:center;
+  }
+  .refresh-link{
+    border:0; background:none; color:var(--ink-faint); font-size:12px; font-weight:600;
+    text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:6px;
+  }
+  .refresh-status{
+    font-size:11.5px; color:var(--ink-faint); margin-top:4px; min-height:14px;
+  }
+
   /* filter sheet */
   .sheet-backdrop{
     position:fixed; inset:0; background:rgba(10,12,14,.4); z-index:50; display:none;
@@ -430,6 +442,10 @@
     </div>
     <div id="speakersResults"></div>
   </section>
+  <div class="app-footer">
+    <button id="refreshProgramBtn" class="refresh-link">Refresh program data</button>
+    <div id="refreshStatus" class="refresh-status" aria-live="polite"></div>
+  </div>
 </main>
 
 <nav class="tabbar">
@@ -476,6 +492,7 @@
   var ROME_TZ = 'Europe/Rome';
   var SOURCE_PAGE = 'https://www.viewconference.it/assets/html/view_CET.html';
   var SITE_URL = 'https://www.viewconference.it/';
+  var REFRESH_RELAY_URL = 'https://view2026-refresh-relay.noxvfx-view2026.workers.dev';
 
   var CATS = {
     'Talk':            { h: 195, label: 'Talk' },
@@ -1141,6 +1158,28 @@
   if (window.matchMedia){
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
   }
+
+  document.getElementById('refreshProgramBtn').addEventListener('click', function(){
+    var btn = this, statusEl = document.getElementById('refreshStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Requesting a refresh…';
+    fetch(REFRESH_RELAY_URL, { method: 'POST' })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(data){ return { status: r.status, data: data }; }); })
+      .then(function(res){
+        if (res.status === 200 && res.data.ok){
+          statusEl.textContent = 'Refresh triggered — the program will update in about a minute. Reload the page to see it.';
+        } else if (res.status === 429 && res.data.reason === 'cooldown'){
+          var mins = Math.max(1, Math.ceil((res.data.waitSeconds || 0) / 60));
+          statusEl.textContent = 'Already refreshed recently — try again in about ' + mins + ' minute' + (mins === 1 ? '' : 's') + '.';
+        } else {
+          statusEl.textContent = 'Could not trigger a refresh right now — please try again later.';
+        }
+      })
+      .catch(function(){
+        statusEl.textContent = 'Could not reach the refresh service — check your connection.';
+      })
+      .then(function(){ btn.disabled = false; });
+  });
 
   renderFreshness();
   renderProgramUpdateBanner();
