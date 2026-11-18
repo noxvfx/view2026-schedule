@@ -1,5 +1,11 @@
 # VIEW Conference 2026 — Live Schedule
 
+> **ARCHIVED — VIEW 2026 has ended.** The site is taken down (GitHub Pages off), the
+> scheduled refresh is removed and the Cloudflare relay is deleted. To revive for a
+> future edition: unarchive the repo, update the dates/URLs in `scripts/refresh.py` and
+> `index.html`, restore the cron `schedule:` from git history, enable Pages (branch
+> `main`, `/`), and redeploy the relay with a fresh token (see "Redeploying the relay").
+
 A mobile-first, filterable schedule app for [VIEW Conference 2026](https://www.viewconference.it/)
 (Torino, 12–16 Oct), mirroring the official live program page.
 
